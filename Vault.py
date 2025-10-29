@@ -6,9 +6,12 @@ import pyperclip
 # Decrypt the file
 decrypted = io.BytesIO()
 
+with open('encryption_pass.txt', 'r') as f:
+    content = f.read()
+
 with open('C:\\Users\\LENOVO T14\\Desktop\\College\\Passwords.xlsx', 'rb') as f:
     file = msoffcrypto.OfficeFile(f)
-    file.load_key(password='mypass')  # Put your Excel password here
+    file.load_key(password=content)  
     file.decrypt(decrypted)
 
 
