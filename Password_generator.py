@@ -91,6 +91,27 @@ def main():
         print(f"Error generating string: {e}", file=sys.stderr)
         sys.exit(3)
 
+    # Ensure each output contains at least one numeric digit.
+    # Prefer digits that were not excluded by the user; fall back to all digits.
+    digit_choices = ''.join(ch for ch in string.digits if ch not in exclude)
+    if not digit_choices:
+        digit_choices = string.digits
+
+    processed = []
+    for s in outputs:
+        if any(ch.isdigit() for ch in s):
+            processed.append(s)
+            continue
+        if len(s) == 0:
+            # If requested length was 0, add a digit so output contains a number.
+            processed.append(random.choice(digit_choices))
+        else:
+            # Replace a random position with a digit to keep the length the same.
+            pos = random.randrange(len(s))
+            processed.append(s[:pos] + random.choice(digit_choices) + s[pos+1:])
+
+    outputs = processed
+
     # Print each item on its own line.
     sys.stdout.write("\n".join(outputs))
     if outputs:

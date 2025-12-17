@@ -2,6 +2,8 @@ import msoffcrypto
 import io
 import pandas as pd
 import pyperclip
+import time
+import os
 
 # Decrypt the file
 decrypted = io.BytesIO()
@@ -9,7 +11,7 @@ decrypted = io.BytesIO()
 with open('encryption_pass.txt', 'r') as f:
     content = f.read()
 
-with open('C:\\Users\\LENOVO T14\\Desktop\\College\\Passwords.xlsx', 'rb') as f:
+with open('C:\\Users\\LENOVO T14\\Desktop\\Treasury\\Passwords.xlsx', 'rb') as f:
     file = msoffcrypto.OfficeFile(f)
     file.load_key(password=content)  
     file.decrypt(decrypted)
@@ -68,7 +70,9 @@ def show_contents(selected, df):
 
     print("="*50)
     pyperclip.copy(selected['password'])
-    # print("\n✓ Password copied to clipboard!")
+    print("\n✓ Password copied to clipboard!")
+    time.sleep(5)
+    os.system("exit")
 
 if __name__ == "__main__":
     search_query = input("Service: ")
@@ -87,6 +91,7 @@ if __name__ == "__main__":
             selected = results[int(choice) - 1]
 
         show_contents(selected, df)
+
 
         
 
