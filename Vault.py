@@ -1,116 +1,122 @@
+import subprocess
+import sys
+
+def install_if_missing(packages):
+    for package, import_name in packages.items():
+        try:
+            __import__(import_name)
+        except ImportError:
+            print(f"Installing {package}...")
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", package],
+                capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                print(f"Failed to install {package}. Error:\n{result.stderr}")
+                sys.exit(1)
+
+install_if_missing({
+    "msoffcrypto-tool": "msoffcrypto",
+    "pandas": "pandas",
+    "openpyxl": "openpyxl",
+    "pyperclip": "pyperclip",
+})
+
 import msoffcrypto
 import io
 import pandas as pd
 import pyperclip
 import time
 import os
+from datetime import datetime                                    # NEW
 
-# Decrypt the file
-decrypted = io.BytesIO()
+OUTDATED_DAYS = 90                                              # NEW
 
-with open('encryption_pass.txt', 'r') as f:
-    content = f.read()
+def load_encrypted_excel(filepath, password_file='encryption_pass.txt'):
+    """Decrypt and load Excel file"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    password_path = os.path.join(script_dir, password_file)
+    
+    with open(password_path, 'r') as f:
+        password = f.read().strip()
+    
+    decrypted = io.BytesIO()
+    with open(filepath, 'rb') as f:
+        file = msoffcrypto.OfficeFile(f)
+        file.load_key(password=password)
+        file.decrypt(decrypted)
+    
+    decrypted.seek(0)
+    return pd.read_excel(decrypted)
 
-with open('C:\\Users\\LENOVO T14\\Desktop\\Treasury\\Passwords.xlsx', 'rb') as f:
-    file = msoffcrypto.OfficeFile(f)
-    file.load_key(password=content)  
-    file.decrypt(decrypted)
-
-
-decrypted.seek(0)
-df = pd.read_excel(decrypted)
-print("✓ File loaded successfully! \033c")
-
-def search(query):
-    """Search for matching query"""
-    query_lower = query.lower()
-
+def search(df, query):
+    """Find matching entries"""
+    q = query.lower()
     matches = []
-
-    for index, row in df.iterrows():
-        service = str(row['Service / Website'])
-        username = str(row['Username'])
-
-        if query_lower in service.lower() or query_lower in username.lower():
+    
+    for idx, row in df.iterrows():
+        if q in str(row['Service / Website']).lower() or q in str(row['Username']).lower():
             matches.append({
-                'index': index,
-                "service": service,
-                "username": row['Username'],
+                'index': idx,
+                'service': row['Service / Website'],
+                'username': row['Username'],
                 'password': row['Password'],
-                'time': row['Timestamp']
+                'timestamp': row['Timestamp']
             })
-            
+    
     return matches
 
-def show_contents(selected, df):
-    if selected is None:
-        return
+def check_outdated(timestamp) -> str | None:                    # NEW
+    """Return a warning string if the password is older than OUTDATED_DAYS, else None."""
+    try:
+        last_updated = pd.to_datetime(timestamp)
+        days_old = (datetime.now() - last_updated).days
+        if days_old >= OUTDATED_DAYS:
+            return f"⚠ Password last updated {days_old} days ago. Consider updating it."
+    except Exception:
+        return "⚠ Could not parse timestamp. Please verify this entry."
+    return None
 
-    # Show details and copy password
-    print("\033c" + "="*50)
+def display_and_copy(match, df):
+    """Show entry details and copy password"""
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print("=" * 50)
+    
+    row = df.iloc[match['index']]
+    for col, val in row.items():
+        if col == 'Timestamp':                                  # NEW
+            continue                                            # NEW
+        if pd.notna(val) and str(val).strip():
+            display = '*' * len(str(val)) if 'password' in col.lower() else val
+            print(f"{col}: {display}")
+    
+    print("=" * 50)
 
-    row = df.iloc[selected['index']]
+    warning = check_outdated(match['timestamp'])
+    if warning:
+        print(f"\n{warning}")
 
-    for column in df.columns:
-        value = row[column]
-
-        if pd.notna(value) and str(value).strip() != '':
-            if 'password' in column.lower():
-                display_value = '*' * len(str(value))
-            else:
-                display_value = value
-            
-            print(f"{column}: {display_value}")
-            if column == 'Password':
-                print('')
-
-            if column == 'Timestamp':
-                # if time 
-                pass
-
-    print("="*50)
-    pyperclip.copy(selected['password'])
+    pyperclip.copy(match['password'])
     print("\n✓ Password copied to clipboard!")
     time.sleep(5)
-    os.system("exit")
 
 if __name__ == "__main__":
-    search_query = input("Service: ")
-    results = search(search_query)
-
-    if len(results) == 0:
+    df = load_encrypted_excel('C:\\Users\\JM\\Desktop\\Treasury\\Passwords.xlsx')
+    
+    query = input("Service: ")
+    results = search(df, query)
+    
+    if not results:
         print("No matches found.")
+        exit()
+    
+    for i, match in enumerate(results, 1):
+        print(f"{i}. {match['service']} ({match['username']})")
+    
+    if len(results) == 1:
+        selected = results[0]
     else:
-        for i, match in enumerate(results, 1):
-            print(f"{i}. {match['service']} ({match['username']})")
-
-        if len(results) == 1:
-            selected = results[0]
-        else:
-            choice = input(f"\nSelect (1-{len(results)}): ")
-            selected = results[int(choice) - 1]
-
-        show_contents(selected, df)
-
-
-        
-
-
-# ==================================================
-
-# Print Columns
-# print("\nYour columns are:")
-# for i, col in enumerate(df.columns, 1):
-#     print(f"  {i}. {col}")
-
-
-# print("\n" + "="*50)
-# print("Example entry (first row):")
-# print("="*50)
-# for col in df.columns:
-#     if pd.notna(df[col][0]):
-#         if (col == "Password"):
-#             pyperclip.copy(df[col][0])
-#             print("\n✓ Password copied to clipboard!")
-#         else:
-#             print(f"{col}: {df[col][0]}")
+        choice = int(input(f"\nSelect (1-{len(results)}): ")) - 1
+        selected = results[choice]
+    
+    display_and_copy(selected, df)
