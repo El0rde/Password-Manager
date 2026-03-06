@@ -28,15 +28,19 @@ import pandas as pd
 import pyperclip
 import time
 import os
-from datetime import datetime                                    # NEW
+from datetime import datetime                                    
 
-OUTDATED_DAYS = 90                                              # NEW
+OUTDATED_DAYS = 90                                              
 
-def load_encrypted_excel(filepath, password_file='encryption_pass.txt'):
+def load_encrypted_excel(password_file='encryption_pass.txt', directory_file='excel_directory.txt'):
     """Decrypt and load Excel file"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    password_path = os.path.join(script_dir, password_file)
+
+    directory_path = os.path.join(script_dir, directory_file)
+    with open(directory_path, 'r') as f:
+        filepath = f.read().strip()
     
+    password_path = os.path.join(script_dir, password_file)
     with open(password_path, 'r') as f:
         password = f.read().strip()
     
@@ -66,7 +70,7 @@ def search(df, query):
     
     return matches
 
-def check_outdated(timestamp) -> str | None:                    # NEW
+def check_outdated(timestamp) -> str | None:                    
     """Return a warning string if the password is older than OUTDATED_DAYS, else None."""
     try:
         last_updated = pd.to_datetime(timestamp)
@@ -84,8 +88,8 @@ def display_and_copy(match, df):
     
     row = df.iloc[match['index']]
     for col, val in row.items():
-        if col == 'Timestamp':                                  # NEW
-            continue                                            # NEW
+        if col == 'Timestamp':                                  
+            continue                                            
         if pd.notna(val) and str(val).strip():
             display = '*' * len(str(val)) if 'password' in col.lower() else val
             print(f"{col}: {display}")
@@ -101,7 +105,7 @@ def display_and_copy(match, df):
     time.sleep(5)
 
 if __name__ == "__main__":
-    df = load_encrypted_excel('C:\\Users\\JM\\Desktop\\Treasury\\Passwords.xlsx')
+    df = load_encrypted_excel()
     
     query = input("Service: ")
     results = search(df, query)
